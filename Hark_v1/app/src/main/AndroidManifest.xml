@@ -3,6 +3,8 @@
     package="com.example.hark_v1">
     <!-- Both "AR Optional" and "AR Required" apps require CAMERA permission. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Sceneform requires OpenGL ES 3.0 or later. -->
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
