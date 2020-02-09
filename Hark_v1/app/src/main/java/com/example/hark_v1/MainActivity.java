@@ -1,7 +1,14 @@
 package com.example.hark_v1;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
 import android.app.Activity;
@@ -10,10 +17,19 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Build;
+import android.content.Intent;
+import edu.cmu.pocketsphinx.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.content.ActivityNotFoundException;
+
+import android.view.View;
+
+
 
 import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -40,19 +56,35 @@ import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 import com.google.ar.sceneform.ux.TransformableNode;
 
+
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+import edu.cmu.pocketsphinx.Assets;
+import edu.cmu.pocketsphinx.Hypothesis;
+import edu.cmu.pocketsphinx.SpeechRecognizer;
+import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
 
-public class MainActivity extends AppCompatActivity {
-    private static final String TAG = MainActivity.class.getSimpleName();
-
+public class MainActivity extends AppCompatActivity implements RecognitionListener {
+    private static final String TAG = "my_hark";
     private ArFragment arFragment;
 
     Pose camera_loc;
     public String pose;
     public int counter;
     public float degree;
+
+
+
+    private SpeechRecognizer recognizer;
+    private static final String KWS_SEARCH = "wakeup";
+    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,17 +93,24 @@ public class MainActivity extends AppCompatActivity {
         arFragment = (ArFragment) getSupportFragmentManager().findFragmentById(R.id.ux_fragment);
 //        session = arFragment.getArSceneView().getSession();
         counter = 0;
+        degree = 85;
+
+
 
 
 
         Scene.OnTouchListener touchListener = (onTouch, whereTouch) -> {
             Frame frame = arFragment.getArSceneView().getArFrame();
-            if(frame == null || counter < 10) {
+            if(frame == null || counter < 15) {
                 return true;
             }
-            camera_loc = frame.getCamera().getDisplayOrientedPose();
-            placeText(camera_loc, degree+" degrees", degree);
-            degree+=5;
+            counter = 0;
+            Log.i(TAG, "Screen Touched, calling speech to text, counter is: "+counter);
+            speech_to_text();
+//            camera_loc = frame.getCamera().getDisplayOrientedPose();
+//
+//            placeText(camera_loc, degree+" degrees", degree);
+//            degree+=5;
             return true;
         };
 
@@ -86,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
             camera_loc = frame.getCamera().getDisplayOrientedPose();
             pose = camera_loc.toString();
             if(counter > 200){
-                Log.i("my_hark", "Timer expired. camera translation & rotation: "+ pose);
+                Log.i(TAG, "Timer expired. camera translation & rotation: "+ pose);
                 placeText(camera_loc, "180 degrees", 180);
 //                counter = 0;
             }
@@ -105,6 +144,19 @@ public class MainActivity extends AppCompatActivity {
         arFragment.getArSceneView().getScene().setOnTouchListener(touchListener);
         arFragment.getArSceneView().getScene().addOnUpdateListener(updateListener);
 
+        // Keep the screen on
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        // Check if user has given permission to record audio
+        int permissionCheck = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.RECORD_AUDIO);
+        if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
+            return;
+        }
+
+        // start speech to text setup
+        runRecognizerSetup();
+
 
 
     }
@@ -118,6 +170,11 @@ public class MainActivity extends AppCompatActivity {
     public void placeText(Pose loc, String text, float deg){
         // If ARCore is not tracking yet, then don't process anything.
         if (arFragment.getArSceneView().getArFrame().getCamera().getTrackingState() != TrackingState.TRACKING) {
+            Log.i(TAG, "Can't place text because ARCore isn't tracking");
+            return;
+        }
+        if(text == null || text.equals("")){
+            Log.i(TAG, "cant place empty text");
             return;
         }
         // get the current session so we can add to it
@@ -168,7 +225,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         arFragment.getArSceneView().getScene().addChild(anchorNode);
-        counter = 0;
+
+
 
     }
 
@@ -188,6 +246,216 @@ public class MainActivity extends AppCompatActivity {
         Vector3 vector =new Vector3(x,y,z);
         return vector;
     }
+
+    // ================ Speech to Text ================
+    public void speech_to_text() {
+
+        Log.i(TAG, "Getting speech to text");
+
+
+        /* Bad method using google's UI
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
+                "Say Something, I'm giving up on you :(");
+
+        try {
+            startActivityForResult(intent, 1);
+        }catch (ActivityNotFoundException e){
+            Toast.makeText( this, e.getMessage(), Toast.LENGTH_SHORT).show();
+        }*/
+
+    }
+
+    // =========================== Pocket Sphynx ============================
+    private void runRecognizerSetup() {
+        // Recognizer initialization is a time-consuming and it involves IO,
+        // so we execute it in async task
+        new AsyncTask<Void, Void, Exception>() {
+            @Override
+            protected Exception doInBackground(Void... params) {
+                try {
+                    Assets assets = new Assets(MainActivity.this);
+                    File assetDir = assets.syncAssets();
+                    setupRecognizer(assetDir);
+                } catch (IOException e) {
+                    return e;
+                }
+                return null;
+            }
+            @Override
+            protected void onPostExecute(Exception result) {
+                if (result != null) {
+                    System.out.println(result.getMessage());
+                    Log.i(TAG, "result from setup: "+result.getMessage());
+                } else {
+                    switchSearch(KWS_SEARCH);
+                    Log.i(TAG, "result from setup is null. is it done?");
+                }
+            }
+        }.execute();
+    }
+
+    private void setupRecognizer(File assetsDir) throws IOException {
+        recognizer = SpeechRecognizerSetup.defaultSetup()
+                .setAcousticModel(new File(assetsDir, "en-us-ptm"))
+                .setDictionary(new File(assetsDir, "cmudict-en-us.dict"))
+                // Disable this line if you don't want recognizer to save raw
+                // audio files to app's storage
+                //.setRawLogDir(assetsDir)
+                .getRecognizer();
+        recognizer.addListener(this);
+
+
+        // Create keyword-activation search.
+//        recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
+
+        File languageModel = new File(assetsDir, "weather.dmp");
+        recognizer.addNgramSearch("wakeup", languageModel);
+
+        // Create your custom grammar-based search
+//        File menuGrammar = new File(assetsDir, "mymenu.gram");
+//        recognizer.addGrammarSearch(MENU_SEARCH, menuGrammar);
+        Log.i(TAG, "recognizer is setup");
+
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        Log.i(TAG, "stopping");
+        if (recognizer != null) {
+            recognizer.cancel();
+            recognizer.shutdown();
+        }
+    }
+
+    @Override
+    public void onPartialResult(Hypothesis hypothesis) {
+        if (hypothesis == null){
+//            Log.i("my_message", "null hypothesis");
+            return;
+        }
+        String text = hypothesis.getHypstr();
+        Log.i(TAG, "partial result: "+text);
+        /*if (text.equals(KEYPHRASE)){
+            Log.i("my_message", "text is keyphrase");
+            switchSearch(MENU_SEARCH);
+        } else if (text.equals("hello")) {
+            System.out.println("Hello to you too!");
+            Log.i("my_message", "HELLOOOO!!!");
+        } else if (text.equals("good morning")) {
+            System.out.println("Good morning to you too!");
+            Log.i("my_message", "ITS NOT MORNING");
+        } else {
+            System.out.println(hypothesis.getHypstr());
+            Log.i("my_message", "Did you say this: "+text);
+        }
+
+         */
+    }
+
+    @Override
+    public void onResult(Hypothesis hypothesis) {
+        if (hypothesis != null) {
+            String speechText = hypothesis.getHypstr();
+            Log.i(TAG, "Read text: "+ speechText);
+            Frame frame = arFragment.getArSceneView().getArFrame();
+            if(frame == null) {
+                Log.i(TAG, "can't process speech, frame is null");
+                return;
+            }
+            camera_loc = frame.getCamera().getDisplayOrientedPose();
+            Log.i(TAG, "placing text: "+ speechText + " at "+degree);
+            placeText(camera_loc, speechText, degree);
+            degree+=5;
+        }
+        else{
+            Log.i(TAG, "couldn't understand");
+
+        }
+    }
+    @Override
+    public void onBeginningOfSpeech() {
+        Log.i(TAG, "SPEECH BEGAN");
+    }
+    @Override
+    public void onEndOfSpeech() {
+        Log.i(TAG, "SPEECH ENDED");
+        switchSearch(KWS_SEARCH);
+//        recognizer.stop();
+
+//        if (!recognizer.getSearchName().equals(KWS_SEARCH)) {
+//            switchSearch(KWS_SEARCH);
+//        }
+
+    }
+    private void switchSearch(String searchName) {
+        Log.i(TAG, "Switching search: "+searchName);
+        recognizer.stop();
+        recognizer.startListening(searchName);
+        /*if (searchName.equals(KWS_SEARCH))
+            recognizer.startListening(searchName);
+        else
+            recognizer.startListening(searchName, 10000);*/
+    }
+    @Override
+    public void onError(Exception error) {
+        System.out.println(error.getMessage());
+        Log.e(TAG,"ERROR: "+error.getMessage());
+    }
+    @Override
+    public void onTimeout() {
+        Log.i(TAG, "on timeout");
+        switchSearch(KWS_SEARCH);
+    }
+
+    // =========================== End Pocket Sphynx ========================
+
+
+
+
+
+
+    /*@Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch (requestCode){
+            case 1:
+
+                if(resultCode==RESULT_OK && null!=data){
+
+                    ArrayList<String> result =
+                            data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+
+                    String speechText = result.get(0);
+                    Log.i(TAG, "Read text: "+ speechText);
+                    Frame frame = arFragment.getArSceneView().getArFrame();
+                    if(frame == null) {
+
+                        return;
+                    }
+                    camera_loc = frame.getCamera().getDisplayOrientedPose();
+                    Log.i(TAG, "placing text: "+ speechText + " at "+degree);
+                    placeText(camera_loc, speechText, degree);
+                    degree+=5;
+                }
+
+                break;
+        }
+    }*/
+
+
+
+
+
+
+
+
 
 
 }
