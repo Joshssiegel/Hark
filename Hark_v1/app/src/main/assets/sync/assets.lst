@@ -1,5 +1,8 @@
 cmudict-en-us.dict
+common-words-2.lm
+common-words.lm
 digits.gram
+en-70k-0.1-pruned.lm
 en-phone.dmp
 en-us-ptm/README
 en-us-ptm/feat.params

@@ -208,6 +208,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                     textNode.getRenderable().setShadowReceiver(false);
                     textNode.getRenderable().setShadowCaster(false);
 
+
                     // Position the text in the direction of the sound
                     textNode.setLocalPosition(getVectorFromDegree(deg));
 
@@ -220,6 +221,13 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
                     //set the text in the textbox
                     tv.setText(text);
+                    tv.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            textNode.setParent(null);
+                        }
+                    }, 10000);
+
 
                 });
 
@@ -306,6 +314,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 // Disable this line if you don't want recognizer to save raw
                 // audio files to app's storage
                 //.setRawLogDir(assetsDir)
+                .setBoolean("-allphone_ci", true)
                 .getRecognizer();
         recognizer.addListener(this);
 
@@ -313,7 +322,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         // Create keyword-activation search.
 //        recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
 
-        File languageModel = new File(assetsDir, "weather.dmp");
+        File languageModel = new File(assetsDir, "common-words.lm");
         recognizer.addNgramSearch("wakeup", languageModel);
 
         // Create your custom grammar-based search
@@ -371,7 +380,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             camera_loc = frame.getCamera().getDisplayOrientedPose();
             Log.i(TAG, "placing text: "+ speechText + " at "+degree);
             placeText(camera_loc, speechText, degree);
-            degree+=5;
+//            degree+=5;
         }
         else{
             Log.i(TAG, "couldn't understand");
@@ -448,12 +457,6 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 break;
         }
     }*/
-
-
-
-
-
-
 
 
 
