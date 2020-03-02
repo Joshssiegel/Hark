@@ -371,7 +371,18 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     public void onResult(Hypothesis hypothesis) {
         if (hypothesis != null) {
             String speechText = hypothesis.getHypstr();
-            Log.i(TAG, "Read text: "+ speechText);
+            if(speechText == null || speechText.equals("")){
+                Log.i(TAG, "empty text");
+                return;
+            }
+            double prob = recognizer.getDecoder().getLogmath().exp(hypothesis.getProb());
+            Log.i(TAG, "Read text: "+ speechText+" with prob: "+prob);
+            int numWords = speechText.split(" ").length;
+            double thresh = 0.2/Math.pow(10,numWords);
+            if(prob < thresh){
+                Log.i(TAG, "prob: "+prob+" must be more than: "+thresh);
+                return;
+            }
             Frame frame = arFragment.getArSceneView().getArFrame();
             if(frame == null) {
                 Log.i(TAG, "can't process speech, frame is null");
