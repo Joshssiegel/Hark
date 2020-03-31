@@ -85,6 +85,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private SpeechRecognizer recognizer;
     private static final String KWS_SEARCH = "wakeup";
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
+    private static final int SPEECH_TIMEOUT = 10000;
+    private static final double VAD_THRESH = 3.5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -315,6 +317,8 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 // audio files to app's storage
                 //.setRawLogDir(assetsDir)
                 .setBoolean("-allphone_ci", true)
+                //
+                .setFloat("-vad_threshold", VAD_THRESH)
                 .getRecognizer();
         recognizer.addListener(this);
 
@@ -416,7 +420,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private void switchSearch(String searchName) {
         Log.i(TAG, "Switching search: "+searchName);
         recognizer.stop();
-        recognizer.startListening(searchName);
+        recognizer.startListening(searchName, SPEECH_TIMEOUT);
         /*if (searchName.equals(KWS_SEARCH))
             recognizer.startListening(searchName);
         else
