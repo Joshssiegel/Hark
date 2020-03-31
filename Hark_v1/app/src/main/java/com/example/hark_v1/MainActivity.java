@@ -88,6 +88,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private static final int SPEECH_TIMEOUT = 10000;
     private static final double VAD_THRESH = 3.5;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -210,7 +211,6 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                     textNode.getRenderable().setShadowReceiver(false);
                     textNode.getRenderable().setShadowCaster(false);
 
-
                     // Position the text in the direction of the sound
                     textNode.setLocalPosition(getVectorFromDegree(deg));
 
@@ -229,6 +229,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                             textNode.setParent(null);
                         }
                     }, 10000);
+
 
 
                 });
@@ -319,6 +320,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                 .setBoolean("-allphone_ci", true)
                 //
                 .setFloat("-vad_threshold", VAD_THRESH)
+
                 .getRecognizer();
         recognizer.addListener(this);
 
@@ -327,6 +329,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 //        recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
 
         File languageModel = new File(assetsDir, "common-words.lm");
+
         recognizer.addNgramSearch("wakeup", languageModel);
 
         // Create your custom grammar-based search
@@ -396,6 +399,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             Log.i(TAG, "placing text: "+ speechText + " at "+degree);
             placeText(camera_loc, speechText, degree);
 //            degree+=5;
+
         }
         else{
             Log.i(TAG, "couldn't understand");
