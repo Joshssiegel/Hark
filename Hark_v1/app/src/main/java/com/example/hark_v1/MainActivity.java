@@ -8,6 +8,8 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Bundle;
 
@@ -19,6 +21,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.content.Intent;
 import edu.cmu.pocketsphinx.RecognitionListener;
+
+import android.os.Handler;
 import android.speech.RecognizerIntent;
 import android.content.ActivityNotFoundException;
 
@@ -33,6 +37,13 @@ import android.view.WindowManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.ar.core.Anchor;
 import com.google.ar.core.Camera;
 import com.google.ar.core.Frame;
@@ -57,18 +68,31 @@ import com.google.ar.sceneform.ux.ArFragment;
 import com.google.ar.sceneform.ux.TransformableNode;
 
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import javax.net.ssl.HttpsURLConnection;
+
 import edu.cmu.pocketsphinx.Assets;
 import edu.cmu.pocketsphinx.Hypothesis;
 import edu.cmu.pocketsphinx.SpeechRecognizer;
 import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
+
+import static com.google.ar.sceneform.utilities.SceneformBufferUtils.readStream;
 
 
 public class MainActivity extends AppCompatActivity implements RecognitionListener {
@@ -83,11 +107,19 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
 
     private SpeechRecognizer recognizer;
+    private MediaRecorder recorder = null;
+
+
     private static final String KWS_SEARCH = "wakeup";
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final int SPEECH_TIMEOUT = 10000;
-    private static final double VAD_THRESH = 3.5;
+    private static final double VAD_THRESH = 3;
 
+    // URL of the Server running the ML and degree detection algorithms
+    private static final String SERVER_URL = "https://571a8b91.ngrok.io";
+
+    public static boolean updateSoundText = false;
+    public static String soundText = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,49 +134,26 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
 
 
-        Scene.OnTouchListener touchListener = (onTouch, whereTouch) -> {
-            Frame frame = arFragment.getArSceneView().getArFrame();
-            if(frame == null || counter < 15) {
-                return true;
-            }
-            counter = 0;
-            Log.i(TAG, "Screen Touched, calling speech to text, counter is: "+counter);
-            speech_to_text();
-//            camera_loc = frame.getCamera().getDisplayOrientedPose();
-//
-//            placeText(camera_loc, degree+" degrees", degree);
-//            degree+=5;
-            return true;
-        };
+
 
         Scene.OnUpdateListener updateListener = frameTime -> {
             // update counter so we don't put multiple text boxes
             counter +=1;
-
-            /*Frame frame = arFragment.getArSceneView().getArFrame();
-            if(frame == null) {
-                return;
+            if(updateSoundText){
+                Log.i(TAG, "Found Envronmental Sound Text to place");
+                Frame frame = arFragment.getArSceneView().getArFrame();
+                camera_loc = frame.getCamera().getDisplayOrientedPose();
+                placeText(camera_loc, soundText, degree);
+                updateSoundText = false;
+                soundText = "";
             }
-            camera_loc = frame.getCamera().getDisplayOrientedPose();
-            pose = camera_loc.toString();
-            if(counter > 200){
-                Log.i(TAG, "Timer expired. camera translation & rotation: "+ pose);
-                placeText(camera_loc, "180 degrees", 180);
-//                counter = 0;
-            }
-            counter +=1;
-//            float[] x = pose.getXAxis();
-//            float[] y = pose.getYAxis();
-//            float[] z = pose.getZAxis();
-
-//            Log.i("hark", "gotPose");*/
 
         };
 
 
 
 
-        arFragment.getArSceneView().getScene().setOnTouchListener(touchListener);
+//        arFragment.getArSceneView().getScene().setOnTouchListener(touchListener);
         arFragment.getArSceneView().getScene().addOnUpdateListener(updateListener);
 
         // Keep the screen on
@@ -161,6 +170,58 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         runRecognizerSetup();
 
 
+        //Instantiate Async task
+        AsyncMLQuery myTask = new AsyncMLQuery(this);
+
+        //Run the task in an asynchronous way
+        myTask.execute(SERVER_URL+"/env_classifier");
+
+
+
+    }
+
+    /**
+     * Query the server for the degree
+     * @return degree
+     */
+    public void getDegreeFromServer(){
+        try {
+            String url = SERVER_URL+"/getangle";
+            RequestQueue queue;
+            queue = Volley.newRequestQueue(this);
+            StringRequest request = new StringRequest(Request.Method.GET, url, new Response.Listener<String>() {
+                @Override
+                public void onResponse(String response) {
+                    Log.i(TAG, "Response from server: "+response);
+                    if (response != null) {
+                        try {
+                            //handle your response
+                            Log.i(TAG, "Got response: " +response);
+                            degree = Float.parseFloat(response);
+                        } catch (Exception e) {
+                            Log.e(TAG, e.toString());
+                            degree = 90;
+                        }
+                    }
+                    else{
+                        degree = 90;
+                    }
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Log.e("error", error.toString());
+                    degree = 90;
+                }
+            });
+            queue.add(request);
+
+        }catch(Exception e){
+            Log.i(TAG, "!!!! Server is not up");
+//            e.printStackTrace();
+            Log.e(TAG, e.toString());
+            degree = 90;
+        }
 
     }
 
@@ -258,28 +319,12 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         return vector;
     }
 
-    // ================ Speech to Text ================
-    public void speech_to_text() {
-
-        Log.i(TAG, "Getting speech to text");
 
 
-        /* Bad method using google's UI
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
 
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
-                "Say Something, I'm giving up on you :(");
 
-        try {
-            startActivityForResult(intent, 1);
-        }catch (ActivityNotFoundException e){
-            Toast.makeText( this, e.getMessage(), Toast.LENGTH_SHORT).show();
-        }*/
 
-    }
+
 
     // =========================== Pocket Sphynx ============================
     private void runRecognizerSetup() {
@@ -332,9 +377,6 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
         recognizer.addNgramSearch("wakeup", languageModel);
 
-        // Create your custom grammar-based search
-//        File menuGrammar = new File(assetsDir, "mymenu.gram");
-//        recognizer.addGrammarSearch(MENU_SEARCH, menuGrammar);
         Log.i(TAG, "recognizer is setup");
 
     }
@@ -397,7 +439,10 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             }
             camera_loc = frame.getCamera().getDisplayOrientedPose();
             Log.i(TAG, "placing text: "+ speechText + " at "+degree);
+
+//            getDegreeFromServer();
             placeText(camera_loc, speechText, degree);
+
 //            degree+=5;
 
         }
@@ -409,6 +454,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     @Override
     public void onBeginningOfSpeech() {
         Log.i(TAG, "SPEECH BEGAN");
+        getDegreeFromServer();
     }
     @Override
     public void onEndOfSpeech() {

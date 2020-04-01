@@ -1,7 +1,6 @@
 cmudict-en-us.dict
 common-words.lm
-digits.gram
-en-phone.dmp
+demo-words.lm
 en-us-ptm/README
 en-us-ptm/feat.params
 en-us-ptm/mdef
@@ -10,8 +9,6 @@ en-us-ptm/noisedict
 en-us-ptm/sendump
 en-us-ptm/transition_matrices
 en-us-ptm/variances
-menu.gram
-mymenu.gram
 sms_corpus.dic
 sms_corpus.dmp
 weather.dmp
