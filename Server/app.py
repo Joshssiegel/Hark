@@ -1,12 +1,24 @@
 from flask import Flask, request, redirect
 import requests
+import sys
+import base64
+import subprocess
+import io
+from scipy.io.wavfile import read, write
 import dash
 import dash_daq as daq
+import numpy as np
 import dash_html_components as html
+import librosa
+sys.path.append('../Classifier')
+import env_classifier as ec
+
 
 server = Flask("Server")
-recentAngle = 0
+recentAngle = 90
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+filenameMP4 = "newwav.mp4"
+filenameWAV = "newwav.wav"
 
 @server.route('/')
 def hello_world():
@@ -14,14 +26,14 @@ def hello_world():
     return redirect('visualizer')
 
 
-visualizer = dash.Dash(name="visualizer", server=server, 
+visualizer = dash.Dash(name="visualizer", server=server,
                         url_base_pathname='/')
 
 visualizer.layout = html.Div([
     daq.Joystick(
         id='my-joystick',
         label="Default",
-        angle=0
+        angle=90
     ),
     html.Div(id='joystick-output')
 ])
@@ -44,6 +56,28 @@ def update_output(angle, force):
 def get_data():
     global recentAngle
     return(str(recentAngle))
+
+@server.route('/env_classifier', methods=['POST'])
+def classify():
+    req_data = request.get_json()
+    print("\n\n***************************RECEIVED REQUEST***************************************")
+    if req_data:
+        recording = req_data['recording']
+        my_str_as_bytes = base64.b64decode(recording)
+
+        newf = open(filenameMP4, "wb")
+        newf.write(my_str_as_bytes)
+        newf.close()
+
+        command = "ffmpeg -y -hide_banner -loglevel panic -i {} -vn -acodec pcm_s16le -ar 44100 -ac 2 {}".format(filenameMP4, filenameWAV)
+        subprocess.call(command, shell=True)
+
+    else:
+        print("EMPTY REQUEST")
+        return ""
+    wav_file = filenameWAV
+    label = ec.getEnvClassification(wav_file)
+    return(str(label))
 
 
 if __name__ == '__main__':
