@@ -74,7 +74,6 @@ def getEnvClassification(wav_file):
     out = model.predict(wav_features)
     label = labels[np.argmax(out)]
     print(label)
-    # print(out[0])
     print(out)
     if max(out[0]) < 0.8:
         label = "NONE"

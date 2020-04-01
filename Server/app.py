@@ -1,34 +1,32 @@
-from flask import Flask, request, redirect
-import requests
-import sys
-import base64
-import subprocess
 import io
-from scipy.io.wavfile import read, write
+import sys
 import dash
-import dash_daq as daq
-import numpy as np
-import dash_html_components as html
+import base64
 import librosa
-sys.path.append('../Classifier')
+import requests
+import subprocess
+import numpy as np
+import dash_daq as daq
 import env_classifier as ec
+sys.path.append('../Classifier')
+import dash_html_components as html
+from scipy.io.wavfile import read, write
+from flask import Flask, request, redirect
 
 
-server = Flask("Server")
 recentAngle = 90
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+server = Flask("Server")
 filenameMP4 = "newwav.mp4"
 filenameWAV = "newwav.wav"
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 @server.route('/')
 def hello_world():
     # TODO: simply reroute this to /visualizer
     return redirect('visualizer')
 
-
 visualizer = dash.Dash(name="visualizer", server=server,
                         url_base_pathname='/')
-
 visualizer.layout = html.Div([
     daq.Joystick(
         id='my-joystick',
@@ -37,7 +35,6 @@ visualizer.layout = html.Div([
     ),
     html.Div(id='joystick-output')
 ])
-
 
 @visualizer.callback(
     dash.dependencies.Output('joystick-output', 'children'),
@@ -51,7 +48,6 @@ def update_output(angle, force):
             html.Br(),
             'Force is {}'.format(force)]
 
-
 @server.route('/getangle', methods=['GET'])
 def get_data():
     global recentAngle
@@ -64,21 +60,18 @@ def classify():
     if req_data:
         recording = req_data['recording']
         my_str_as_bytes = base64.b64decode(recording)
-
         newf = open(filenameMP4, "wb")
         newf.write(my_str_as_bytes)
         newf.close()
-
         command = "ffmpeg -y -hide_banner -loglevel panic -i {} -vn -acodec pcm_s16le -ar 44100 -ac 2 {}".format(filenameMP4, filenameWAV)
         subprocess.call(command, shell=True)
-
     else:
         print("EMPTY REQUEST")
         return ""
+
     wav_file = filenameWAV
     label = ec.getEnvClassification(wav_file)
     return(str(label))
-
 
 if __name__ == '__main__':
     visualizer.run_server(debug=True)
