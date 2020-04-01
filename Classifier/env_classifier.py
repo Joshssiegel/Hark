@@ -61,7 +61,8 @@ def getModel():
     model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=["accuracy"])
     #loading
     # model.load_weights('../Classifier/modelv1.hdf5')
-    model.load_weights('../Classifier/modelv0.hdf5')
+    # model.load_weights('../Classifier/modelv0.hdf5')
+    model.load_weights('../Classifier/modelv2.hdf5')
     return model
 
 
