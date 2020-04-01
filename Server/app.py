@@ -7,8 +7,8 @@ import requests
 import subprocess
 import numpy as np
 import dash_daq as daq
-import env_classifier as ec
 sys.path.append('../Classifier')
+import env_classifier as ec
 import dash_html_components as html
 from scipy.io.wavfile import read, write
 from flask import Flask, request, redirect
@@ -57,6 +57,7 @@ def get_data():
 def classify():
     req_data = request.get_json()
     print("\n\n***************************RECEIVED REQUEST***************************************")
+    print(recentAngle)
     if req_data:
         recording = req_data['recording']
         my_str_as_bytes = base64.b64decode(recording)

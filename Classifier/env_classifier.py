@@ -68,12 +68,14 @@ def getModel():
 def getEnvClassification(wav_file):
     # TODO: get rid of children_playing,air_conditioner, engine_idling, street_music, drilling
     labels = ['air_conditioner','car_horn','children_playing','dog_bark','drilling','engine_idling','gun_shot','jackhammer','siren','street_music']
+    new_labels = ['car_horn','dog_bark','gun_shot','jackhammer','siren']
     wav_features = np.reshape(getFeaturesFromWav(wav_file), (1, 40, 5, 1))
     print("\n\n*******************************")
     model = getModel()
     out = model.predict(wav_features)
     label = labels[np.argmax(out)]
-    print(label)
+    new_label = new_labels[np.argmax(out)]
+    print(new_label)
     print(out)
     if max(out[0]) < 0.8:
         label = "NONE"
