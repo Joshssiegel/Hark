@@ -55,7 +55,8 @@ def getModel():
     model.add(Dropout(0.3))
     model.add(Dense(512,activation="relu"))
     model.add(Dropout(0.3))
-    model.add(Dense(10,activation="softmax"))
+    model.add(Dense(5,activation="softmax"))
+    # model.add(Dense(10,activation="softmax"))
     # model.add(Dense(11,activation="softmax"))
     #compiling
     model.compile(optimizer="adam",loss="categorical_crossentropy",metrics=["accuracy"])

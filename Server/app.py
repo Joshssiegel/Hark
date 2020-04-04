@@ -19,6 +19,10 @@ server = Flask("Server")
 filenameMP4 = "newwav.mp4"
 filenameWAV = "newwav.wav"
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+colors = {
+    'background': 'white',
+    'text': '#00FFB3'
+}
 
 @server.route('/')
 def hello_world():
@@ -27,13 +31,25 @@ def hello_world():
 
 visualizer = dash.Dash(name="visualizer", server=server,
                         url_base_pathname='/')
-visualizer.layout = html.Div([
+
+visualizer.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
+    html.H1(
+        children='hARk',
+        style={
+            'textAlign': 'center',
+            'color': colors['text']
+        }
+    ),
+
+    html.Div([
     daq.Joystick(
         id='my-joystick',
-        label="Default",
-        angle=90
+        label="Incoming Sound",
+        angle=90,
+        size=250,
     ),
     html.Div(id='joystick-output')
+])
 ])
 
 @visualizer.callback(
