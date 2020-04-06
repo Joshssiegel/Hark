@@ -1,0 +1,25 @@
+body {
+  background-color: #333333;
+}
+
+.title {
+  color: #00ffb3;
+  margin-top: 100px;
+  margin-bottom: 20px;
+}
+
+.instr {
+  color: #F0EDEE;
+}
+.angle {
+  color: aqua;
+  font-size: large;
+}
+
+.back {
+  background-color: #F0EDEE !important;
+}
+
+.front {
+  background-color: #171d2a !important;
+}

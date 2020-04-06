@@ -18,11 +18,14 @@ recentAngle = 90
 server = Flask("Server")
 filenameMP4 = "newwav.mp4"
 filenameWAV = "newwav.wav"
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-colors = {
-    'background': 'white',
-    'text': '#00FFB3'
-}
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css',
+{
+        'href': 'https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css',
+        'rel': 'stylesheet',
+        'integrity': 'sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO',
+        'crossorigin': 'anonymous'
+    }
+]
 
 @server.route('/')
 def hello_world():
@@ -30,39 +33,39 @@ def hello_world():
     return redirect('visualizer')
 
 visualizer = dash.Dash(name="visualizer", server=server,
-                        url_base_pathname='/')
+                        url_base_pathname='/',
+                external_stylesheets=external_stylesheets)
 
-visualizer.layout = html.Div(style={'backgroundColor': colors['background']}, children=[
+visualizer.layout = html.Div(className='main', children=[
     html.H1(
         children='hARk',
-        style={
-            'textAlign': 'center',
-            'color': colors['text']
-        }
+        className=['text-center title']
     ),
 
+    html.H2(
+        children='Drag the joystick to select the direction of incoming noise',
+        className='instr text-center'
+    ),  
     html.Div([
     daq.Joystick(
         id='my-joystick',
-        label="Incoming Sound",
         angle=90,
         size=250,
+        className='stick'
     ),
-    html.Div(id='joystick-output')
-])
+    html.Div(id='joystick-output', className='angle'), 
+],className='joystick text-center d-flex justify-content-center flex-column align-items-center')
 ])
 
 @visualizer.callback(
     dash.dependencies.Output('joystick-output', 'children'),
-    [dash.dependencies.Input('my-joystick', 'angle'),
-     dash.dependencies.Input('my-joystick', 'force')])
-def update_output(angle, force):
+    [dash.dependencies.Input('my-joystick', 'angle')])
+def update_output(angle):
     global recentAngle
-    if(angle and force):
+    if(angle):
         recentAngle = angle
     return ['Angle is {}'.format(angle),
-            html.Br(),
-            'Force is {}'.format(force)]
+            html.Br()]
 
 @server.route('/getangle', methods=['GET'])
 def get_data():
