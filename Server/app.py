@@ -39,13 +39,15 @@ visualizer = dash.Dash(name="visualizer", server=server,
 visualizer.layout = html.Div(className='main', children=[
     html.H1(
         children='hARk',
-        className=['text-center title']
+        className=['text-center title'],
+        style={"fontSize": "18em"}
     ),
 
     html.H2(
         children='Drag the joystick to select the direction of incoming noise',
-        className='instr text-center'
-    ),  
+        className='instr text-center',
+        style={"fontSize": "5em"}
+    ),
     html.Div([
     daq.Joystick(
         id='my-joystick',
@@ -53,7 +55,7 @@ visualizer.layout = html.Div(className='main', children=[
         size=250,
         className='stick'
     ),
-    html.Div(id='joystick-output', className='angle'), 
+    html.Div(id='joystick-output', className='angle', style={"fontSize": "8em"}),
 ],className='joystick text-center d-flex justify-content-center flex-column align-items-center')
 ])
 
@@ -64,7 +66,7 @@ def update_output(angle):
     global recentAngle
     if(angle):
         recentAngle = angle
-    return ['Angle is {}'.format(angle),
+    return ['Angle is {:.0f} deg'.format(angle),
             html.Br()]
 
 @server.route('/getangle', methods=['GET'])
