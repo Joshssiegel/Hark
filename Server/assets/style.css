@@ -14,6 +14,13 @@ body {
 .angle {
   color: aqua;
   font-size: large;
+  padding-top: 100px;
+  text-align: center;
+}
+
+.stick {
+  padding-left: 15%;
+  padding-top: 100px;
 }
 
 .back {
