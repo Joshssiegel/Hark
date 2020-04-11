@@ -15,6 +15,9 @@ from flask import Flask, request, redirect
 
 
 recentAngle = 90
+classif = ''
+sendAngle=''
+
 server = Flask("Server")
 filenameMP4 = "newwav.mp4"
 filenameWAV = "newwav.wav"
@@ -52,11 +55,13 @@ visualizer.layout = html.Div(className='main', children=[
     daq.Joystick(
         id='my-joystick',
         angle=90,
-        size=250,
-        className='stick'
+        size=300,
+        className='stick col-md-6 justify-content-center align-items-center'
     ),
-    html.Div(id='joystick-output', className='angle', style={"fontSize": "8em"}),
-],className='joystick text-center d-flex justify-content-center flex-column align-items-center')
+    html.Div(id='joystick-output', className='angle col-md-6', style={"fontSize": "8em"}),
+],className='joystick row')
+
+    #html.Div([],className="")
 ])
 
 @visualizer.callback(
@@ -64,18 +69,33 @@ visualizer.layout = html.Div(className='main', children=[
     [dash.dependencies.Input('my-joystick', 'angle')])
 def update_output(angle):
     global recentAngle
+    global sendAngle
     if(angle):
         recentAngle = angle
-    return ['Angle is {:.0f} deg'.format(angle),
+    return ['The Angle is set to: {:.0f}'.format(angle),
             html.Br()]
+
+def send_angle():
+    global sendAngle
+    return ['{}'.format(sendangle),
+            html.Br()]
+
+def update_output():
+    global classif
+    return ['{}'.format(classif),
+            html.Br()]
+
 
 @server.route('/getangle', methods=['GET'])
 def get_data():
     global recentAngle
+    global sendAngle
+    sendAngle = 'The angle: '+str(recentAngle)+' has been sent to the device.'
     return(str(recentAngle))
 
 @server.route('/env_classifier', methods=['POST'])
 def classify():
+    global classif
     req_data = request.get_json()
     print("\n\n***************************RECEIVED REQUEST***************************************")
     print(recentAngle)
@@ -92,7 +112,9 @@ def classify():
         return ""
 
     wav_file = filenameWAV
+    classif = 'SUDDEN NOISE DETECTED! Please wait while it is classified...'
     label = ec.getEnvClassification(wav_file)
+    classif = 'The noise just turned out to be: '+str(label)
     return(str(label))
 
 if __name__ == '__main__':

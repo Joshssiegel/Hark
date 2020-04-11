@@ -85,7 +85,7 @@ def getEnvClassification(wav_file):
         print("NOT CONFIDENT ENOUGH")
         return ""
     print("*******************************\n\n")
-    if np.argmax(out) != 4:
-        return ""
+    # if np.argmax(out) != 4:
+    #     return ""
     return new_label
     # return label
