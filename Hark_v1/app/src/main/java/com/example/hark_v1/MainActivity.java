@@ -34,6 +34,7 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -113,10 +114,10 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
     private static final String KWS_SEARCH = "wakeup";
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final int SPEECH_TIMEOUT = 10000;
-    private static final double VAD_THRESH = 3;
+    private static final double VAD_THRESH = 2.75;
 
     // URL of the Server running the ML and degree detection algorithms
-    private static final String SERVER_URL = "https://571a8b91.ngrok.io";
+    private static final String SERVER_URL = "https://9e895d07.ngrok.io";
 
     public static boolean updateSoundText = false;
     public static String soundText = "";
@@ -140,10 +141,10 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             // update counter so we don't put multiple text boxes
             counter +=1;
             if(updateSoundText){
-                Log.i(TAG, "Found Envronmental Sound Text to place");
+                Log.i(TAG, "Found Envronmental Sound Text to place: "+soundText);
                 Frame frame = arFragment.getArSceneView().getArFrame();
                 camera_loc = frame.getCamera().getDisplayOrientedPose();
-                placeText(camera_loc, soundText, degree);
+                placeText(camera_loc, soundText, degree, true);
                 updateSoundText = false;
                 soundText = "";
             }
@@ -231,7 +232,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
      * @param text  text to be displayed
      * @param deg  angle you want the text to be placed at
      */
-    public void placeText(Pose loc, String text, float deg){
+    public void placeText(Pose loc, String text, float deg, boolean env_sound){
         // If ARCore is not tracking yet, then don't process anything.
         if (arFragment.getArSceneView().getArFrame().getCamera().getTrackingState() != TrackingState.TRACKING) {
             Log.i(TAG, "Can't place text because ARCore isn't tracking");
@@ -256,10 +257,17 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
         // set the parent of the anchor to be the scene
         anchorNode.setParent(arFragment.getArSceneView().getScene());
+        int layout;
+        if(!env_sound) {
+           layout = R.layout.text;
+        }
+        else{
+            layout = R.layout.env_sound_text;
+        }
 
         //Display text
         //add text view node
-        ViewRenderable.builder().setView(this, R.layout.text).build()
+        ViewRenderable.builder().setView(this, layout).build()
                 .thenAccept(viewRenderable -> {
                     // create a textNode
                     Node textNode = new Node();
@@ -280,7 +288,12 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
 
                     // Get the textbox layout so we can edit the text in it
                     TextView tv;
-                    tv = ((ViewRenderable) textNode.getRenderable()).getView().findViewById(R.id.textView);
+                    if(!env_sound) {
+                        tv = ((ViewRenderable) textNode.getRenderable()).getView().findViewById(R.id.textView);
+                    }
+                    else{
+                        tv = ((ViewRenderable) textNode.getRenderable()).getView().findViewById(R.id.envSoundTextView);
+                    }
 
                     //set the text in the textbox
                     tv.setText(text);
@@ -289,18 +302,93 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
                         public void run() {
                             textNode.setParent(null);
                         }
-                    }, 10000);
+                    }, 5000);
 
 
 
                 });
 
 
-        arFragment.getArSceneView().getScene().addChild(anchorNode);
 
 
 
-    }
+        if(degree > 115) {
+            // Create the Anchor at camera location.
+            ViewRenderable.builder().setView(this, R.layout.left_arrow).build()
+                    .thenAccept(viewRenderable -> {
+                        // create a textNode
+                        Node arrowNode = new Node();
+                        // set the parent of the textNode to be the scene and the anchor
+                        arrowNode.setParent(arFragment.getArSceneView().getScene());
+                        arrowNode.setParent(anchorNode);
+                        // set the display to be the textbox defined in res/layout/text.xml
+                        arrowNode.setRenderable(viewRenderable);
+                        // we don't want the textbox to cast a shadow or be under a shadow
+                        arrowNode.getRenderable().setShadowReceiver(false);
+                        arrowNode.getRenderable().setShadowCaster(false);
+
+                        // Position the text in the direction of the sound
+                        arrowNode.setLocalPosition(getVectorFromDegree(105));
+
+                        // Angle the textbox to face towards the camera
+                        arrowNode.setLocalRotation(Quaternion.axisAngle(new Vector3(0f, 1f, 0f), (110 - 90)));
+
+                        // Get the textbox layout so we can edit the text in it
+                        ImageView iv;
+                        iv = ((ViewRenderable) arrowNode.getRenderable()).getView().findViewById(R.id.leftArrow);
+
+                        Log.i(TAG, "Placing Arrow");
+                        iv.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                arrowNode.setParent(null);
+                            }
+                        }, 1800);
+
+
+                    });
+        }
+        else if(degree < 65) {
+            // Create the Anchor at camera location.
+            ViewRenderable.builder().setView(this, R.layout.right_arrow).build()
+                    .thenAccept(viewRenderable -> {
+                        // create a textNode
+                        Node arrowNode = new Node();
+                        // set the parent of the textNode to be the scene and the anchor
+                        arrowNode.setParent(arFragment.getArSceneView().getScene());
+                        arrowNode.setParent(anchorNode);
+                        // set the display to be the textbox defined in res/layout/text.xml
+                        arrowNode.setRenderable(viewRenderable);
+                        // we don't want the textbox to cast a shadow or be under a shadow
+                        arrowNode.getRenderable().setShadowReceiver(false);
+                        arrowNode.getRenderable().setShadowCaster(false);
+
+                        // Position the text in the direction of the sound
+                        arrowNode.setLocalPosition(getVectorFromDegree(75));
+
+                        // Angle the textbox to face towards the camera
+                        arrowNode.setLocalRotation(Quaternion.axisAngle(new Vector3(0f, 1f, 0f), (70 - 90)));
+
+                        // Get the textbox layout so we can edit the text in it
+                        ImageView iv;
+                        iv = ((ViewRenderable) arrowNode.getRenderable()).getView().findViewById(R.id.rightArrow);
+
+                        Log.i(TAG, "Placing Right Arrow");
+                        iv.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                arrowNode.setParent(null);
+                            }
+                        }, 1800);
+
+
+                    });
+            }
+            arFragment.getArSceneView().getScene().addChild(anchorNode);
+
+        }
+
+
 
     /**
      *
@@ -373,7 +461,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         // Create keyword-activation search.
 //        recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
 
-        File languageModel = new File(assetsDir, "common-words.lm");
+        File languageModel = new File(assetsDir, "demo-words.lm");
 
         recognizer.addNgramSearch("wakeup", languageModel);
 
@@ -441,7 +529,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
             Log.i(TAG, "placing text: "+ speechText + " at "+degree);
 
 //            getDegreeFromServer();
-            placeText(camera_loc, speechText, degree);
+            placeText(camera_loc, speechText, degree, false);
 
 //            degree+=5;
 

@@ -73,7 +73,7 @@ public class AsyncMLQuery extends AsyncTask<String, String, String> {
                 Log.i(TAG, "Starting Recording for env sounds");
                 start_recording();
                 //Wait 4 seconds
-                Thread.sleep(4000);
+                Thread.sleep(2000);
                 stop_recording();
                 Log.i(TAG, "Finished Recording for env sounds");
 
@@ -127,6 +127,7 @@ public class AsyncMLQuery extends AsyncTask<String, String, String> {
         recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         recorder.setOutputFile(SOUND_FILENAME);
+        recorder.setAudioSamplingRate(44100);
         recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
         try {
@@ -172,7 +173,7 @@ public class AsyncMLQuery extends AsyncTask<String, String, String> {
     {
         super.onProgressUpdate(values);
         String env_sound = values[0];
-        Log.i(TAG, "About to give to main thread: " + env_sound);
+        Log.i(TAG, "About to give to main thread: " + env_sound+ "  !!!");
         MainActivity.soundText = env_sound;
         MainActivity.updateSoundText = true;
     }
