@@ -461,7 +461,7 @@ public class MainActivity extends AppCompatActivity implements RecognitionListen
         // Create keyword-activation search.
 //        recognizer.addKeyphraseSearch(KWS_SEARCH, KEYPHRASE);
 
-        File languageModel = new File(assetsDir, "demo-words.lm");
+        File languageModel = new File(assetsDir, "common-words.lm");
 
         recognizer.addNgramSearch("wakeup", languageModel);
 
